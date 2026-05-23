@@ -30,3 +30,5 @@ supabase/.env
 
 # Test artifacts
 test-results/
+
+.vercel

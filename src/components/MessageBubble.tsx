@@ -1,7 +1,7 @@
 import './MessageBubble.css'
 
 interface Props {
-  role: 'user' | 'assistant'
+  role: string
   content: string
 }
 

@@ -92,7 +92,7 @@ export default function ChatArea({ conversationId, onConversationCreated, onTogg
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
-        conversation_id: convId,
+        conversation_id: convId!,
         user_id: user.id,
         role: 'assistant',
         content: response.data.response,
