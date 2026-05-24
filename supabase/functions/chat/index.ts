@@ -100,20 +100,45 @@ Deno.serve(async (req) => {
     const systemPrompt = buildSystemPrompt(memories);
     const contents = buildContents(systemPrompt, recentMessages || []);
 
-    // Call Gemini for response
-    const chatResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents }),
-      }
-    );
+    // Call Gemini for response (with retry and model fallback)
+    const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+    let assistantText = "";
 
-    const chatData = await chatResponse.json();
-    const assistantText =
-      chatData.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "I'm sorry, I couldn't generate a response.";
+    for (const model of models) {
+      let success = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const chatResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents }),
+          }
+        );
+
+        if (chatResponse.ok) {
+          const chatData = await chatResponse.json();
+          const text = chatData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            assistantText = text;
+            success = true;
+            break;
+          }
+        }
+
+        if (chatResponse.status === 429 || chatResponse.status === 503) {
+          const wait = Math.pow(2, attempt) * 1000;
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        break;
+      }
+      if (success) break;
+    }
+
+    if (!assistantText) {
+      assistantText = "I'm sorry, I couldn't generate a response. The AI service may be temporarily unavailable — please try again in a moment.";
+    }
 
     // Save assistant message
     await supabase.from("messages").insert({
