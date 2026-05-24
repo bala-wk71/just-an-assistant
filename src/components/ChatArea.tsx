@@ -19,10 +19,15 @@ export default function ChatArea({ conversationId, onConversationCreated, onTogg
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const skipNextLoad = useRef(false)
 
   useEffect(() => {
     if (!conversationId) {
       setMessages([])
+      return
+    }
+    if (skipNextLoad.current) {
+      skipNextLoad.current = false
       return
     }
     loadMessages(conversationId)
@@ -64,6 +69,7 @@ export default function ChatArea({ conversationId, onConversationCreated, onTogg
         return
       }
       convId = data.id
+      skipNextLoad.current = true
       onConversationCreated(convId)
     } else {
       await supabase
